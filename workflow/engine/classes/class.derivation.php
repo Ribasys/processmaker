@@ -732,11 +732,31 @@ class Derivation
             $aOldFields = $this->case->loadCase( $aNewCase['APPLICATION'] );
 
             foreach ($aFields as $sOriginField => $sTargetField) {
-                $sOriginField = str_replace( '@', '', $sOriginField );
-                $sOriginField = str_replace( '#', '', $sOriginField );
-                $sTargetField = str_replace( '@', '', $sTargetField );
-                $sTargetField = str_replace( '#', '', $sTargetField );
-                $aNewFields[$sTargetField] = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+				if(preg_match('$\\@\\=(\\w+)\\[[\\\'\\"](\\d+)[\\\'\\"]\\]\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
+					//$sOriginField = str_replace( '@=', '', $sOriginField );
+					$sTargetField = str_replace( '@', '', $sTargetField );
+					$sTargetField = str_replace( '#', '', $sTargetField );
+					$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
+					
+
+					if(empty($newTargetVal)){
+						var_dump($matches[3]." Is EMpty");
+						var_dump($appFields['APP_DATA'][$matches[1]][$matches[2]]);
+						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
+					
+					}
+					$aNewFields[$sTargetField] = $newTargetVal;
+					
+				}else{
+					$sOriginField = str_replace( '@', '', $sOriginField );
+					$sOriginField = str_replace( '#', '', $sOriginField );
+					$sTargetField = str_replace( '@', '', $sTargetField );
+					$sTargetField = str_replace( '#', '', $sTargetField );
+					$aNewFields[$sTargetField] = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+				
+				
+				}
+      
             }
 
             $aOldFields['APP_DATA'] = array_merge( $aOldFields['APP_DATA'], $aNewFields );
@@ -819,11 +839,27 @@ class Derivation
                 $aFields = unserialize( $aSP['SP_VARIABLES_IN'] );
                 $aNewFields = array ();
                 foreach ($aFields as $sOriginField => $sTargetField) {
-                    $sOriginField = str_replace( '@', '', $sOriginField );
-                    $sOriginField = str_replace( '#', '', $sOriginField );
-                    $sTargetField = str_replace( '@', '', $sTargetField );
-                    $sTargetField = str_replace( '#', '', $sTargetField );
-                    $aNewFields[$sTargetField] = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+       				if(preg_match('$\\@\\=(\\w+)\\[[\\\'\\"](\\d+)[\\\'\\"]\\]\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
+					//$sOriginField = str_replace( '@=', '', $sOriginField );
+					$sTargetField = str_replace( '@', '', $sTargetField );
+					$sTargetField = str_replace( '#', '', $sTargetField );
+					$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
+					var_dump($newTargetVal);
+					if(empty($newTargetVal)){
+						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
+					
+					}
+					$aNewFields[$sTargetField] = $newTargetVal;
+					
+				}else{
+					$sOriginField = str_replace( '@', '', $sOriginField );
+					$sOriginField = str_replace( '#', '', $sOriginField );
+					$sTargetField = str_replace( '@', '', $sTargetField );
+					$sTargetField = str_replace( '#', '', $sTargetField );
+					$aNewFields[$sTargetField] = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+				
+				
+				}
                 }
                 $aParentCase['APP_DATA'] = array_merge( $aParentCase['APP_DATA'], $aNewFields );
                 $oCase->updateCase( $aSA['APP_PARENT'], $aParentCase );
