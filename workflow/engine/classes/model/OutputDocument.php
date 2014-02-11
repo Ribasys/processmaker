@@ -478,7 +478,8 @@ class OutputDocument extends BaseOutputDocument
     {
         if (($sUID != '') && is_array($aFields) && ($sPath != '')) {
             $sContent = G::replaceDataGridField($sContent, $aFields);
-
+			//Check For Date Field and convert them! to d.m.Y quick and dirty			
+			$sContent=preg_replace('/(\d{4})-(\d{2})-(\d{2})/','$3.$2.$1',$sContent);
             G::verifyPath($sPath, true);
 
             //Start - Create .doc
