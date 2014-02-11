@@ -391,18 +391,49 @@ class Derivation
                 break;
             case 'EVALUATE':
                 $AppFields = $this->case->loadCase( $tasInfo['APP_UID'] );
+				if(isset($tasInfo['NEXT_TASK']['TAS_PARENT']) && !empty($tasInfo['NEXT_TASK']['TAS_PARENT'])){
+					$nextTask = new Task();
+					$nextTaskFields = $nextTask->load( $tasInfo['NEXT_TASK']['TAS_PARENT'] );
+				}
+				//var_export($nextTaskFields);
+
+				
                 $variable = str_replace( '@@', '', $nextAssignedTask['TAS_ASSIGN_VARIABLE'] );
-                if (isset( $AppFields['APP_DATA'][$variable] )) {
+				if(isset($nextTaskFields['TAS_TYPE'])&& $nextTaskFields['TAS_TYPE']=='SUBPROCESS'){
+					//var_dump('SUBPROCESS'); die;
+					$umlaute = Array("/ä/","/ö/","/ü/","/Ä/","/Ö/","/Ü/","/ß/");
+					$replace = Array("ae","oe","ue","Ae","Oe","Ue","ss");
+					$variable = preg_replace($umlaute, $replace, $nextTaskFields['TAS_TITLE']);
+					$variable = preg_replace(array('$\s$','$\W$','$_+$','/^(\d+)/'),array('_','_','_','_$1'),$variable)."_user";
+					$variable = strtolower($variable);
+					//var_dump( $AppFields['ROU_CONDITION']);//ROU_CONDITION
+					if ($AppFields['APP_DATA'][$variable] != '') {
+                        $value = $this->checkReplacedByUser( $AppFields['APP_DATA'][$variable] );
+                        $userFields = $this->getUsersFullNameFromArray( $value );
+                        if (is_null( $userFields )) {
+						//var_dump("EX 1");
+                            throw (new Exception( "Task doesn't have a valid user in variable $variable." ));
+                        }
+                    } else {
+						//var_dump("EX 2");
+                        throw (new Exception( "Task doesn't have a valid user in variable $variable." ));
+                    }
+				}
+                elseif (isset( $AppFields['APP_DATA'][$variable] )) {
                     if ($AppFields['APP_DATA'][$variable] != '') {
                         $value = $this->checkReplacedByUser( $AppFields['APP_DATA'][$variable] );
                         $userFields = $this->getUsersFullNameFromArray( $value );
                         if (is_null( $userFields )) {
+						//var_dump("EX 1");
                             throw (new Exception( "Task doesn't have a valid user in variable $variable." ));
                         }
                     } else {
+						var_dump("EX 2");
                         throw (new Exception( "Task doesn't have a valid user in variable $variable." ));
                     }
                 } else {
+					//debug
+					//var_dump("EX 3");
                     throw (new Exception( "Task doesn't have a valid user in variable $variable or this variable doesn't exist." ));
                 }
                 break;
@@ -723,6 +754,10 @@ class Derivation
 
         //if there are subprocess to create
         if (isset( $aSP )) {
+			// debug
+			//var_dump("Assign Values");
+		
+		
             //Create the new case in the sub-process
             // set the initial date to null the time its created
             $aNewCase = $this->case->startCase( $aSP['TAS_UID'], $aSP['USR_UID'], true );
@@ -732,22 +767,34 @@ class Derivation
             $aOldFields = $this->case->loadCase( $aNewCase['APPLICATION'] );
 
             foreach ($aFields as $sOriginField => $sTargetField) {
-				if(preg_match('$\\@\\=(\\w+)\\[[\\\'\\"](\\d+)[\\\'\\"]\\]\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
+					//Check IF ORIGIN FIELD IS A GRID row
+				if(preg_match('$\\@\\=(\\w+)\\[[\'"]{0,}(\\d+)\\][\'"]{0,}\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
 					//$sOriginField = str_replace( '@=', '', $sOriginField );
+						$sTargetField = str_replace( '@', '', $sTargetField );
+						$sTargetField = str_replace( '#', '', $sTargetField );
+						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
+						//var_dump($newTargetVal);
+						if(empty($newTargetVal)){
+							$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
+						
+						}
+						$aNewFields[$sTargetField] = $newTargetVal;
+					
+				}
+				//Check IF Target FIELD IS A GRID row
+				elseif(preg_match('$\\@\\=(\\w+)\\[[\'"]{0,}(\\d+)\\][\'"]{0,}\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sTargetField, $matches)){
+					$sOriginField = str_replace( '@', '', $sOriginField );
+					$sOriginField = str_replace( '#', '', $sOriginField );
 					$sTargetField = str_replace( '@', '', $sTargetField );
 					$sTargetField = str_replace( '#', '', $sTargetField );
-					$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
-					
+					$newTargetVal = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+					var_dump("aOldFields before:",$aOldFields['APP_DATA'] );
+					$aOldFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]]=$newTargetVal;
+					//var_dump("aOldFields after:",$aOldFields['APP_DATA'] ); die;
 
-					if(empty($newTargetVal)){
-						var_dump($matches[3]." Is EMpty");
-						var_dump($appFields['APP_DATA'][$matches[1]][$matches[2]]);
-						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
-					
-					}
-					$aNewFields[$sTargetField] = $newTargetVal;
-					
-				}else{
+				
+				}
+				else{
 					$sOriginField = str_replace( '@', '', $sOriginField );
 					$sOriginField = str_replace( '#', '', $sOriginField );
 					$sTargetField = str_replace( '@', '', $sTargetField );
@@ -839,19 +886,35 @@ class Derivation
                 $aFields = unserialize( $aSP['SP_VARIABLES_IN'] );
                 $aNewFields = array ();
                 foreach ($aFields as $sOriginField => $sTargetField) {
-       				if(preg_match('$\\@\\=(\\w+)\\[[\\\'\\"](\\d+)[\\\'\\"]\\]\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
+					//Check IF ORIGIN FIELD IS A GRID row
+				if(preg_match('$\\@\\=(\\w+)\\[[\'"]{0,}(\\d+)\\][\'"]{0,}\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sOriginField, $matches)){
 					//$sOriginField = str_replace( '@=', '', $sOriginField );
+						$sTargetField = str_replace( '@', '', $sTargetField );
+						$sTargetField = str_replace( '#', '', $sTargetField );
+						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
+						//var_dump($newTargetVal);
+						if(empty($newTargetVal)){
+							$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
+						
+						}
+						$aNewFields[$sTargetField] = $newTargetVal;
+					
+				}
+				//Check IF Target FIELD IS A GRID row
+				elseif(preg_match('$\\@\\=(\\w+)\\[[\'"]{0,}(\\d+)\\][\'"]{0,}\\[[\\\'\\"](\\w+)[\\\'\\"]\\]$', $sTargetField, $matches)){
+					$sOriginField = str_replace( '@', '', $sOriginField );
+					$sOriginField = str_replace( '#', '', $sOriginField );
 					$sTargetField = str_replace( '@', '', $sTargetField );
 					$sTargetField = str_replace( '#', '', $sTargetField );
-					$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]] : '';
-					var_dump($newTargetVal);
-					if(empty($newTargetVal)){
-						$newTargetVal = isset( $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] ) ? $appFields['APP_DATA'][$matches[1]][$matches[2]][$matches[3]."_label"] : '';
-					
-					}
-					$aNewFields[$sTargetField] = $newTargetVal;
-					
-				}else{
+					$newTargetVal = isset( $appFields['APP_DATA'][$sOriginField] ) ? $appFields['APP_DATA'][$sOriginField] : '';
+															//var_dump("aOldFields before:",$aParentCase['APP_DATA'] ); 
+
+					$aParentCase['APP_DATA'][$matches[1]][$matches[2]][$matches[3]]=$newTargetVal;
+										//var_dump("aOldFields after:",$aParentCase['APP_DATA'] ); 
+
+				
+				}
+				else{
 					$sOriginField = str_replace( '@', '', $sOriginField );
 					$sOriginField = str_replace( '#', '', $sOriginField );
 					$sTargetField = str_replace( '@', '', $sTargetField );
