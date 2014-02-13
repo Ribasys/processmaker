@@ -929,6 +929,16 @@ class Cases
             $aApplicationFields = $Fields['APP_DATA'];
             $Fields['APP_UID'] = $sAppUid;
             $Fields['APP_UPDATE_DATE'] = 'now';
+			
+			$FieldsBefore = $this->loadCase($sAppUid);
+			// Prevent already set fields from being deleted
+			foreach($FieldsBefore['APP_DATA'] as $fb_k => $fb_v)
+			{
+				if(!isset($Fields['APP_DATA'][$fb_k])){
+					$Fields['APP_DATA'][$fb_k] = $fb_v ;
+				}
+			}
+
             $Fields['APP_DATA'] = serialize($Fields['APP_DATA']);
             /*
               $oApp = new Application;
@@ -947,7 +957,6 @@ class Cases
             //Start: Save History --By JHL
             if (isset($Fields['CURRENT_DYNAFORM'])) {
                 //only when that variable is set.. from Save
-                $FieldsBefore = $this->loadCase($sAppUid);
                 $FieldsDifference = $this->arrayRecursiveDiff($FieldsBefore['APP_DATA'], $aApplicationFields);
                 $fieldsOnBoth = array_intersect_assoc($FieldsBefore['APP_DATA'], $aApplicationFields);
                 //Add fields that weren't in previous version
