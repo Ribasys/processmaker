@@ -301,7 +301,7 @@ class processMap
                             if (!empty($aRow2["FINISH"])) {
                                 $oTask->color = "#006633"; //Green
                             } else {
-                                if ($oTask->derivation->type != 5) {
+                                if (isset($oTask->derivation->type) && $oTask->derivation->type != 5) {
                                     if ($aRow2["CANT"] != 0) {
                                         $oTask->color = "#FF0000"; //Red
                                     } else {
