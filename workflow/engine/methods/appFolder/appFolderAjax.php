@@ -1130,30 +1130,52 @@ function moveAction()
     copyMoveAction("move");
 }
 
-function findChilds($uidFolder, $path, $arrayPath) {
-    $Criteria = new Criteria ();
-    $Criteria->addSelectColumn ( AppFolderPeer::FOLDER_UID );
-    $Criteria->addSelectColumn ( AppFolderPeer::FOLDER_PARENT_UID );
-    $Criteria->addSelectColumn ( AppFolderPeer::FOLDER_NAME );
-    $Criteria->addSelectColumn ( AppFolderPeer::FOLDER_CREATE_DATE );
-    $Criteria->addSelectColumn ( AppFolderPeer::FOLDER_UPDATE_DATE );
+function findChilds($uidFolder, $path, $arrayPath,$ii=0) {
+	$Criteria = new Criteria ();
+	$Criteria->addSelectColumn ( AppFolderPeer::FOLDER_UID );
+	$Criteria->addSelectColumn ( AppFolderPeer::FOLDER_PARENT_UID );
+	$Criteria->addSelectColumn ( AppFolderPeer::FOLDER_NAME );
+	$Criteria->addSelectColumn ( AppFolderPeer::FOLDER_CREATE_DATE );
+	$Criteria->addSelectColumn ( AppFolderPeer::FOLDER_UPDATE_DATE );
 
-    $Criteria->add(AppFolderPeer::FOLDER_PARENT_UID, $uidFolder);
-    $Criteria->addAscendingOrderByColumn(AppFolderPeer::FOLDER_NAME);
+	if(is_array($uidFolder)){
+		$Criteria->add(AppFolderPeer::FOLDER_PARENT_UID, $uidFolder,Criteria::IN);
 
-    $rs = appFolderPeer::doSelectRS ( $Criteria );
-    $rs->setFetchmode ( ResultSet::FETCHMODE_ASSOC );
+	}else{
+		$Criteria->add(AppFolderPeer::FOLDER_PARENT_UID, $uidFolder);
 
-    $folderResult = array ();
-    $appFoder = new AppFolder ();
-    while ($rs->next()) {
-        $row = $rs->getRow();
-        $path = ($uidFolder != '/')? $path : '';
-        $path = $path."/".$row['FOLDER_NAME'];
-        $arrayPath[] = array($row['FOLDER_UID'],$path);
-        $arrayPath = findChilds($row['FOLDER_UID'], $path, $arrayPath);
-    }
-    return $arrayPath;
+	}
+	$Criteria->addAscendingOrderByColumn(AppFolderPeer::FOLDER_NAME);
+
+	$rs = appFolderPeer::doSelectRS ( $Criteria );
+	$rs->setFetchmode ( ResultSet::FETCHMODE_ASSOC );
+
+	$folderResult = array ();
+	$appFoder = new AppFolder ();
+	while ($rs->next()) {
+		$row = $rs->getRow();
+		if(isset($arrayPath[$row['FOLDER_PARENT_UID']])){
+			$path = $arrayPath[$row['FOLDER_PARENT_UID']][1]."/".$row['FOLDER_NAME'];
+		}
+		else{
+			$path = "/".$row['FOLDER_NAME'];
+
+		}
+		$arrayPath[$row['FOLDER_UID']] = array($row['FOLDER_UID'],$path);
+		$folderResult[] = $row['FOLDER_UID'];
+
+	}
+	$iii=$ii;
+	if(!empty($folderResult)){
+		$arrayPath = findChilds($folderResult, $path, $arrayPath,$ii++);
+	}
+	if($iii==0){
+		usort($arrayPath, function ($a, $b)
+		{
+			return strcmp($a[1], $b[1]);
+		});
+	}
+	return (!empty($arrayPath)?$arrayPath:null);
 }
 function copyMoveAction($type)
 {
